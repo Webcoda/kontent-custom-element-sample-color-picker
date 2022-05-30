@@ -5,12 +5,12 @@
     <meta charset="UTF-8" />
     <title>Color Picker</title>
     <!-- libs -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
-    <script src="color-picker.min.js"></script>
+    <link rel="preload" href="https://unpkg.com">
     <link rel="stylesheet" href="color-picker.min.css" />
 
     <!-- Kentico Custom elements API-->
     <script src="https://app.kontent.ai/js-api/custom-element/v1/custom-element.min.js"></script>
+    <script src="https://unpkg.com/vue@3"></script>
 
     <!-- Custom elements styles -->
     <style>
@@ -47,82 +47,59 @@
 
 <body>
     <!-- Custom element HTML -->
-    <div class="disabled_overlay"></div>
-    <div class="color-picker-box">
-        <section id="color-picker"></section>
-        <input type="text" id="hex-value" />
+    <div id="app">
+        <div class="disabled_overlay" v-show="disabled"></div>
+        <div class="color-picker-box" :style="{ backgroundColor: color }">
+            <input type="color" v-model="color" />
+            <br>
+            <br>
+            <input type="search" v-model="color" />
+        </div>
     </div>
 
     <!-- Custom element code -->
     <script>
-        var isDisabled = false;
-        var hexValueEl = document.querySelector('#hex-value')
-        const container = document.querySelector("#color-picker");
+        const {
+            createApp
+        } = Vue
 
-        function updateDisabled(disabled) {
-            isDisabled = disabled;
-            if (disabled) {
-                $(".disabled_overlay").show();
-            } else {
-                $(".disabled_overlay").hide();
+        createApp({
+            data() {
+                return {
+                    disabled: false,
+                    color: '',
+                }
+            },
+            methods: {
+                updateDisabled(disabled) {
+                    this.disabled = disabled;
+                },
+                updateSize() {
+                    // Update the custom element height in the Kentico UI.
+                    const height = Math.ceil(document.querySelector("html").clientHeight);
+                    CustomElement.setHeight(height);
+                }
+            },
+            mounted() {
+                try {
+                    CustomElement.init((element, _context) => {
+                        // Setup with initial value and disabled state
+                        console.log(eleme)
+                        this.disabled = element.disabled;
+                        this.color = element.value;
+                        this.updateSize();
+                    });
+
+                    // React on disabled changed (e.g. when publishing the item)
+                    CustomElement.onDisabledChanged(this.updateDisabled);
+                } catch (err) {
+                    // Initialization with Kentico Custom element API failed (page displayed outside of the Kentico UI)
+                    console.error(err);
+                    this.disabled = true;
+                    this.color = '';
+                }
             }
-        }
-
-        var changeColorFn = function(color) {
-            container.parentNode.style.backgroundColor = "#" + color;
-            $(hexValueEl).val('#' + color);
-            if (!isDisabled) {
-                // Send updated color to Kentico
-                CustomElement.setValue("#" + color);
-            }
-        }
-
-        function setupColorPicker(hexColorValue) {
-
-            const picker = new CP(container, false, container);
-            picker.self.classList.add("static");
-            if (!!hexColorValue) {
-                picker.set(hexColorValue);
-                container.parentNode.style.backgroundColor = hexColorValue;
-                $(hexValueEl).val(container.parentNode.style.backgroundColor);
-            }
-
-            picker.on("change", changeColorFn);
-
-            $(hexValueEl).on('change', function() {
-                var $this = $(this);
-                changeColorFn($this.val().replace('#', ''))
-            })
-
-            picker.enter();
-        }
-
-        function updateSize() {
-            // Update the custom element height in the Kentico UI.
-            const height = Math.ceil($("html").height());
-            CustomElement.setHeight(height);
-        }
-
-        function initCustomElement() {
-            try {
-                CustomElement.init((element, _context) => {
-                    // Setup with initial value and disabled state
-                    updateDisabled(element.disabled);
-                    setupColorPicker(element.value);
-                    updateSize();
-                });
-
-                // React on disabled changed (e.g. when publishing the item)
-                CustomElement.onDisabledChanged(updateDisabled);
-            } catch (err) {
-                // Initialization with Kentico Custom element API failed (page displayed outside of the Kentico UI)
-                console.error(err);
-                setupColorPicker();
-                updateDisabled(true);
-            }
-        }
-
-        initCustomElement();
+        }).mount('#app')
     </script>
 </body>
 
